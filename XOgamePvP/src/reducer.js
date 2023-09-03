@@ -47,7 +47,8 @@ const reducer =  (state, action) => {
                 isReady: action.payload1,
                 isAllReady:action.payload2,
                 currentPlayerId: action.payload3,
-                cells: action.payload4
+                cells: action.payload4,
+                currentRound: action.payload5
             };
 
             case 'ALLREADY':
@@ -55,6 +56,7 @@ const reducer =  (state, action) => {
                 ...state,
                 isAllReady:action.payload.isAllReady,
                 currentPlayerId: action.payload.currentPlayerId,
+                currentRound: action.payload.currentRound,
                 cells: action.payload.cells
             }
             
@@ -63,7 +65,9 @@ const reducer =  (state, action) => {
                 return {
                     ...state,
                     currentPlayerId: action.payload.currentPlayerId,
-                    cells: action.payload.cells
+                    cells: action.payload.cells,
+                    isReady: !action.payload.win,
+                    isAllReady: !action.payload.win,
                 }
 
 

@@ -16,6 +16,7 @@ function App() {
     isReady: false,
     isAllReady: false,
     currentPlayerId: null,
+    currentRound: null,
     userId: null,
     users: [],
     roomIndex: null,
@@ -47,9 +48,11 @@ const changeReady = async (status) => {
   await axios.post('/changeReady', obj).then((res)=>{
     let cpi = res.data.currentPlayerId;
     let c = res.data.cells;
+    let cr = res.data.currentRound;
     if (!res.data.isAllReady)  {
       cpi = null;
       c = []; 
+      cr = null;
     }
     dispatch({ //Что за грязь? :d 
       type: 'CHANGE_READY',
@@ -57,7 +60,8 @@ const changeReady = async (status) => {
       payload1: status,
       payload2: res.data.isAllReady,
       payload3: cpi,
-      payload4: c
+      payload4: c,
+      payload5: cr
     })
     
   });
@@ -87,7 +91,16 @@ const clickCell = async (index) => { //Нужно остановить игру 
         type: 'ENDOFTURN',
         payload: res.data
       })
-      if(res.data.win > 0) alert('Ты победил!')
+      if(res.data.isDraw) {
+        alert('Ничья')
+        socket.emit('ROUND:DRAW', state.roomIndex);
+      }
+      if(res.data.win > 0) {
+        dispatch({
+          type: 'SET_USERS',
+          payload: res.data.users
+        })
+        alert('Ты победил!')}
       const obj1 = {
         roomIndex: state.roomIndex,
         currentPlayerId: +res.data.currentPlayerId,
@@ -120,7 +133,14 @@ const endOfTurn = (obj) => {
     payload: obj
   })
 
-  if(obj.win > 0) alert('Победил игрок: ' + obj.winnerName)
+  if(obj.win > 0) {
+    alert('Победил игрок: ' + obj.winnerName)
+    
+  }
+}
+
+const roundDraw = () => {
+  alert('Ничья')
 }
 
 React.useEffect( () => {
@@ -128,7 +148,8 @@ React.useEffect( () => {
   socket.on('ROOM:SET_USERS', setUsers);
   socket.on('ROOM:NEW_MESSAGE', addMessage);
   socket.on('ROOM:ALLREADY', isAllReady);
-  socket.on('ROUND:END_OF_TURN', endOfTurn )
+  socket.on('ROUND:END_OF_TURN', endOfTurn );
+  socket.on('ROUND:DRAW', roundDraw);
  
   
 
@@ -137,7 +158,8 @@ React.useEffect( () => {
     socket.off('ROOM:SET_USERS', setUsers);
     socket.off('ROOM:NEW_MESSAGE', addMessage); 
     socket.off('ROOM:ALLREADY', isAllReady);
-    socket.off('ROUND:END_OF_TURN', endOfTurn );}
+    socket.off('ROUND:END_OF_TURN', endOfTurn );
+    socket.off('ROUND:DRAW', roundDraw);}
 }, []);
 
   const onLogin = async (obj) => {

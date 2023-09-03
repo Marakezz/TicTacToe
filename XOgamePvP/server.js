@@ -35,7 +35,7 @@ app.get('/rooms/:id', (req, res) => {
     res.json(obj);
 });
 
-app.get('/roomUsers/:id', (req, res) => { 
+app.get('/roomUsers/:id', (req, res) => { //Больше не нужен?
     const {id: roomIndex} = req.params;
     const users = [];
     if(rooms.has(+roomIndex)){
@@ -73,6 +73,7 @@ app.post('/rooms', (req, res) => {
           ['roomName', userName],
           ['roomPassword', roomPassword],
           ['currentPlayer', 0],
+          ['currentRound', 1],
           ['cells', ['', '', '', '', '', '', '', '', '']] //O - это буква
         ]),
     );
@@ -126,9 +127,10 @@ app.post('/rooms', (req, res) => {
         users.push(obj);
     }) 
     const currentPlayerId = rooms.get(roomIndex).get('currentPlayer')
+    const currentRound = rooms.get(roomIndex).get('currentRound')
     const cells = rooms.get(roomIndex).get('cells')
 
-    res.json({users, isAllReady, currentPlayerId, cells});
+    res.json({users, isAllReady, currentPlayerId, currentRound, cells});
 
   })
 
@@ -140,6 +142,7 @@ app.post('/rooms', (req, res) => {
         if(rooms.get(roomIndex).get('cells')[cellIndex]) {
             res.json('CellIsAnavailable')
         } else {
+            
             console.log('Сходил игрок ' + [...rooms.get(+roomIndex).get('users').values()][rooms.get(roomIndex).get('currentPlayer')].get('userName') )
             if(rooms.get(roomIndex).get('currentPlayer')%2 === 0) {
                 rooms.get(roomIndex).get('cells')[cellIndex] = 'X'
@@ -147,8 +150,10 @@ app.post('/rooms', (req, res) => {
                 rooms.get(roomIndex).get('cells')[cellIndex] = 'O'
             }
 
-            //Проверка выиграна ли игра
+            let isDraw = false;
             let win = 0
+            //Проверка выиграна ли игра
+           
             if( (rooms.get(roomIndex).get('cells')[cellIndex] === rooms.get(roomIndex).get('cells')[cellIndex+3]) && //верхний в вертикальной
             (rooms.get(roomIndex).get('cells')[cellIndex] === rooms.get(roomIndex).get('cells')[cellIndex+6])) win++
             if( (rooms.get(roomIndex).get('cells')[cellIndex] === rooms.get(roomIndex).get('cells')[cellIndex-3]) && //средний в вертикальной
@@ -163,23 +168,51 @@ app.post('/rooms', (req, res) => {
             if ((cellIndex%3 === 2) && (rooms.get(roomIndex).get('cells')[cellIndex] === rooms.get(roomIndex).get('cells')[cellIndex-1]) && //правый в горизонтальной
             (rooms.get(roomIndex).get('cells')[cellIndex] === rooms.get(roomIndex).get('cells')[cellIndex-2])) win++
 
-            if ((rooms.get(roomIndex).get('cells')[0] === rooms.get(roomIndex).get('cells')[4]) && //горизонталь 1
+            if ((rooms.get(roomIndex).get('cells')[0] === rooms.get(roomIndex).get('cells')[4]) && //диагональ 1
             (rooms.get(roomIndex).get('cells')[0] === rooms.get(roomIndex).get('cells')[8]) && (rooms.get(roomIndex).get('cells')[4] !== '') ) win++
-            if ((rooms.get(roomIndex).get('cells')[2] === rooms.get(roomIndex).get('cells')[4]) && //горизонталь 2
+            if ((rooms.get(roomIndex).get('cells')[2] === rooms.get(roomIndex).get('cells')[4]) && //диагональ 2
             (rooms.get(roomIndex).get('cells')[2] === rooms.get(roomIndex).get('cells')[6]) && (rooms.get(roomIndex).get('cells')[4] !== '') ) win++
 
            
             // console.log(win)
 
+            const users = [];
             if(win <= 0 ) {
                 rooms.get(+roomIndex).set('currentPlayer', ((rooms.get(roomIndex).get('currentPlayer')+1)%numberOfPlayersInTheRoom));
-            } 
-                const obj = {
-                    currentPlayerId:rooms.get(roomIndex).get('currentPlayer'),
-                    cells: rooms.get(roomIndex).get('cells'),
-                    win
+                isDraw = true;
+                [...rooms.get(roomIndex).get('cells')].forEach((cell, id) => {
+                    if(!cell) isDraw = false
+                })
+                if(isDraw) {
+                    rooms.get(roomIndex).set('cells', (['', '', '', '', '', '', '', '', '']));
                 }
-                res.json(obj)
+            } else {
+                rooms.get(roomIndex).set('cells', (['', '', '', '', '', '', '', '', '']));
+                [...rooms.get(+roomIndex).get('users').values()][rooms.get(roomIndex).get('currentPlayer')].set('points', 
+                [...rooms.get(+roomIndex).get('users').values()][rooms.get(roomIndex).get('currentPlayer')].get('points')+ 1);
+                rooms.get(roomIndex).set('currentRound', rooms.get(roomIndex).get('currentRound')+1);
+                rooms.get(+roomIndex).set('currentPlayer', ((rooms.get(roomIndex).get('currentRound')+1)%numberOfPlayersInTheRoom));
+                [...rooms.get(roomIndex).get('users').values()].forEach((item, index) => {
+                  item.set('isReady', false)
+                }) ;
+                [...rooms.get(roomIndex).get('users').values()].forEach((item, index) => {
+                    const obj ={
+                        id: item.get('id'),
+                        userName: item.get('userName'),
+                        points: item.get('points'),
+                        isReady: item.get('isReady')
+                    }
+                    users.push(obj);
+            })
+        }
+                    const obj = {
+                        currentPlayerId:rooms.get(roomIndex).get('currentPlayer'),
+                        cells: rooms.get(roomIndex).get('cells'),
+                        isDraw,
+                        win,
+                        users
+                }
+                    res.json(obj)
             
 
         }
@@ -261,6 +294,7 @@ io.on('connection', (socket) => {
             const obj = {
                 isAllReady,
                 currentPlayerId: rooms.get(roomIndex).get('currentPlayer'),
+                currentRound: rooms.get(roomIndex).get('currentRound'),
                 cells: rooms.get(roomIndex).get('cells')
             }
 
@@ -269,13 +303,29 @@ io.on('connection', (socket) => {
     })
 
     socket.on('ROUND:END_OF_TURN', ({roomIndex, currentPlayerId, cells, win, winnerName}) => {
+        const users = [];
+        [...rooms.get(roomIndex).get('users').values()].forEach((item, index) => {
+            const obj ={
+                id: item.get('id'),
+                userName: item.get('userName'),
+                points: item.get('points'),
+                isReady: item.get('isReady')
+            }
+            users.push(obj);
+        }) 
+        socket.to(roomIndex).emit('ROOM:SET_USERS', users);
+
         const obj = {
             currentPlayerId,
             cells, 
             win,
-            winnerName
+            winnerName,
         }
         socket.to(roomIndex).emit('ROUND:END_OF_TURN', obj);
+    })
+
+    socket.on('ROUND:DRAW', (roomIndex) => {
+        socket.to(roomIndex).emit('ROUND:DRAW');
     })
 
     socket.on('disconnect', () => {
@@ -293,6 +343,7 @@ io.on('connection', (socket) => {
                         }
                         socket.to(roomIndex).emit('ROOM:NEW_MESSAGE', obj );
         
+                        rooms.get(roomIndex).set('cells', (['', '', '', '', '', '', '', '', '']));
         
                         value.get('users').delete(socket.id)//это метод Map(а), возвращает тру если удалился, и фолс если нет
                         const users = [];
