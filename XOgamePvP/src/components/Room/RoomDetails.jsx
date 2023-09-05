@@ -2,9 +2,9 @@ import React from "react";
 
 
 import { FiUsers } from 'react-icons/fi';
-import { RiDeleteBin7Line } from 'react-icons/ri';
+// import { RiDeleteBin7Line } from 'react-icons/ri';
 import { BiLogOut, BiCrown } from 'react-icons/bi';
-import { TbMicrophone2 } from 'react-icons/tb';
+// import { TbMicrophone2 } from 'react-icons/tb';
 
 function RoomDetails({
     users,
@@ -137,63 +137,6 @@ function RoomDetails({
                                          <span className="text-base font-semibold">Не готов</span>}
 
                                 </div>
-{/*             
-                                {((role==='admin')&&(user.role !== 'admin')) ? (
-                                    <>
-                                    <button
-                                    onClick={() => {
-                                        const obj = {
-                                            id: user.id,
-                                            userName: user.userName,
-                                            roomName
-                                        }
-                                        deletePlayer(obj)
-                                    }}
-                                    className="
-                                        rounded
-                                        text-neutral-300
-                                        hover:text-rose-500
-                                        text-base
-                                        font-semibold
-                                        p-1
-                                        py-auto
-                                        flex
-                                        justify-center
-                                        transition
-                                    "
-                                >
-                                    <RiDeleteBin7Line className="inline-block my-auto"/>
-                                </button>
-
-
-                                    <button className='border-spacing-2 border-2'
-                                    onClick={() => {
-                                        const obj = {
-                                            roomName: roomName,
-                                            id: user.id,
-                                        }
-                                        makePlayerToAdmin(obj)
-                                    }}>
-                                        Сделать админом
-                                    </button>
-
-                                    <button className='border-2'
-                                    onClick={() => {
-                                        const obj = {
-                                            amount: 999,
-                                            roomName: roomName,
-                                            id: user.id
-                                        }
-                                        changePoints(obj);
-                                    }}>
-                                        Баллы
-                                    </button>
-                                </>
-                                ):(
-                                    <></>
-                                )} */}
-
-
                         </div>
                     )}
                 </div>

@@ -16,10 +16,9 @@ const rooms = new Map();
 let roomIndex = 0;
 const numberOfPlayersInTheRoom = 2
 
-app.get('/rooms/:id', (req, res) => { 
-    const {id: roomIndex} = req.params;
+const getUsers = (roomIndex) => {
     const users = [];
-    [...rooms.get(+roomIndex).get('users').values()].forEach((item, index) => {
+    [...rooms.get(roomIndex).get('users').values()].forEach((item, index) => {
         const obj = {
             id: item.get('id'),
             userName: item.get('userName'),
@@ -27,7 +26,13 @@ app.get('/rooms/:id', (req, res) => {
             isReady: item.get('isReady')
         }
         users.push(obj);
-    }) 
+    })
+    return users;
+}
+
+app.get('/rooms/:id', (req, res) => { 
+    const {id: roomIndex} = req.params;
+    const users = getUsers(+roomIndex)
     const obj = rooms.has(+roomIndex) ? {
         users: users,
         messages: [...rooms.get(+roomIndex).get('messages').values()]
@@ -37,17 +42,8 @@ app.get('/rooms/:id', (req, res) => {
 
 app.get('/roomUsers/:id', (req, res) => { //Больше не нужен?
     const {id: roomIndex} = req.params;
-    const users = [];
     if(rooms.has(+roomIndex)){
-        [...rooms.get(+roomIndex).get('users').values()].forEach((item, index) => {
-            const obj = {
-                id: item.get('id'),
-                userName: item.get('userName'),
-                points: item.get('points'),
-                isReady: item.get('isReady')
-            }
-            users.push(obj);
-        }) 
+        const users = getUsers(+roomIndex);
         res.json(users);
     } else {
         res.json([]);
@@ -108,24 +104,27 @@ app.post('/rooms', (req, res) => {
   app.post('/changeReady', (req,res) => {
     const {userId, roomIndex, status} = req.body;
     rooms.get(roomIndex).get('users').get(userId).set('isReady', status );
-    const users = [];
+    let users = [];
     let isAllReady = true;
-    [...rooms.get(+roomIndex).get('users').values()].forEach((item, index) => {
-        if(rooms.get(+roomIndex).get('users').size < numberOfPlayersInTheRoom)
-        isAllReady = false; else {
-            if(item.get('isReady') === false) 
-            isAllReady=false;
-        }
-      
 
-        const obj = {
-            id: item.get('id'),
-            userName: item.get('userName'),
-            points: item.get('points'),
-            isReady: item.get('isReady')
-        }
-        users.push(obj);
-    }) 
+    if(rooms.get(+roomIndex).get('users').size < numberOfPlayersInTheRoom){
+        isAllReady = false;
+        users = getUsers(+roomIndex);
+    } else {          
+            [...rooms.get(+roomIndex).get('users').values()].forEach((item, index) => {
+                        if(item.get('isReady') === false) 
+                        isAllReady=false;
+                  
+                    const obj = {
+                        id: item.get('id'),
+                        userName: item.get('userName'),
+                        points: item.get('points'),
+                        isReady: item.get('isReady')
+                    }
+                    users.push(obj);
+                }) 
+    }
+
     const currentPlayerId = rooms.get(roomIndex).get('currentPlayer')
     const currentRound = rooms.get(roomIndex).get('currentRound')
     const cells = rooms.get(roomIndex).get('cells')
@@ -176,7 +175,7 @@ app.post('/rooms', (req, res) => {
            
             // console.log(win)
 
-            const users = [];
+            let users = [];
             if(win <= 0 ) {
                 rooms.get(+roomIndex).set('currentPlayer', ((rooms.get(roomIndex).get('currentPlayer')+1)%numberOfPlayersInTheRoom));
                 isDraw = true;
@@ -195,15 +194,7 @@ app.post('/rooms', (req, res) => {
                 [...rooms.get(roomIndex).get('users').values()].forEach((item, index) => {
                   item.set('isReady', false)
                 }) ;
-                [...rooms.get(roomIndex).get('users').values()].forEach((item, index) => {
-                    const obj ={
-                        id: item.get('id'),
-                        userName: item.get('userName'),
-                        points: item.get('points'),
-                        isReady: item.get('isReady')
-                    }
-                    users.push(obj);
-            })
+                users = getUsers(roomIndex);
         }
                     const obj = {
                         currentPlayerId:rooms.get(roomIndex).get('currentPlayer'),
@@ -213,8 +204,6 @@ app.post('/rooms', (req, res) => {
                         users
                 }
                     res.json(obj)
-            
-
         }
 
     } else {
@@ -249,16 +238,7 @@ io.on('connection', (socket) => {
             ['points', 0],
             ['isReady', false]
         ])); 
-        const users = [];
-        [...rooms.get(roomIndex).get('users').values()].forEach((item, index) => {
-            const obj ={
-                id: item.get('id'),
-                userName: item.get('userName'),
-                points: item.get('points'),
-                isReady: item.get('isReady')
-            }
-            users.push(obj);
-        }) 
+        const users = getUsers(roomIndex);
         socket.to(roomIndex).emit('ROOM:SET_USERS', users);
 
     });
@@ -303,16 +283,7 @@ io.on('connection', (socket) => {
     })
 
     socket.on('ROUND:END_OF_TURN', ({roomIndex, currentPlayerId, cells, win, winnerName}) => {
-        const users = [];
-        [...rooms.get(roomIndex).get('users').values()].forEach((item, index) => {
-            const obj ={
-                id: item.get('id'),
-                userName: item.get('userName'),
-                points: item.get('points'),
-                isReady: item.get('isReady')
-            }
-            users.push(obj);
-        }) 
+        const users = getUsers(roomIndex);
         socket.to(roomIndex).emit('ROOM:SET_USERS', users);
 
         const obj = {
